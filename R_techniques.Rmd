@@ -1,0 +1,168 @@
+---
+title: "R_techniques"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Speedup R code for data manipulation and visualization
+
+## Vectorization
+
+```{r}
+vec <- seq(1, 200, 1)
+# add 10 to each element of the vector
+for(i in 1:length(vec)){
+  vec[i] <- vec[i] + 10
+}
+
+vec <- seq(1, 200, 1)
+# add 10 to each element of the vector (use vectorization)
+vec <- vec + 10
+```
+
+## Built-in function > for loop > recursion
+
+```{r}
+vec <- seq(1, 1e8, 1)
+# Built-in function
+system.time(
+  sum(vec)
+)
+
+# For loop
+custom_sum <- function(para){
+  sum <- 0
+  for (i in vec){
+    sum = sum + i
+  }
+  return(sum)
+}
+system.time(custom_sum(vec))
+```
+
+```{r}
+N = 30
+
+# For loop (Fibonacci sequence)
+fibo_for <- function(N){
+  fibo_seq <- rep(0, N)
+  fibo_seq[1] <- 0
+  fibo_seq[2] <- 1
+  for (i in 1:N){
+    if (i >= 3){
+      fibo_seq[i] = fibo_seq[i - 1] + fibo_seq[i - 2]
+    }
+  }
+  print(fibo_seq[N])
+}
+system.time(fibo_for(N))
+
+# Recursion (Fibonacci sequence)
+fibo_recur <- function(k){
+  if (k == 1) {
+    return(0)
+  } else if (k == 2) {
+    return(1)
+  } else {
+    return(fibo_recur(k-1) + fibo_recur(k-2))
+  }
+}
+system.time(
+  print(fibo_recur(N))
+)
+```
+
+## apply(), lapply(), sapply(), tapply()
+
+```{r}
+# a 100 column data.frame
+x <- data.frame(matrix(runif(100*1e4), ncol = 100))
+
+# loop 100 times, adding another row to x
+system.time(
+  for(i in seq_along(1:100)){
+    x <- rbind(x, data.frame(matrix(runif(1*1e4), ncol = 100)))
+    }
+)
+```
+
+```{r}
+# a 100 column data.frame
+x <- data.frame(matrix(runif(100*1e4), ncol = 100))
+
+## using lapply()
+system.time(
+  lapply(1:100, function(y) rbind(x, data.frame(matrix(runif(1*1e4), ncol = 100))))
+
+)
+```
+
+## Parallel Processing
+
+Parallel computing involves the simultaneous execution of multiple tasks or processes to speed up computations, where we can take advantage of multi-core processors. In R, we can leverage many packages to perform parallel computing. 
+
+
+# Example on Real Data
+
+```{r cars}
+# load libraries
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r}
+accident = read.csv("accident_subset.csv")
+```
+
+## for loop
+```{r}
+unique_states <- unique(accident$State)
+system.time(
+for(state in unique_states){
+  # Subset data for the current state
+  state_data <- accident[accident$State == state,]
+  
+  p <- ggplot(state_data, aes(x=Severity)) +
+    geom_histogram(binwidth=1, fill="blue", color="black", alpha=0.7) + 
+    ggtitle(paste("Distribution of Severity in", state)) +
+    xlab("Severity") +
+    ylab("Count") +
+    theme_minimal()
+  
+  print(p)
+})
+```
+
+
+## apply() + Parallel Processing
+```{r}
+library(parallel)
+plot_histogram <- function(state) {
+  # Subset data for the current state
+  state_data <- accident[accident$State == state,]
+  
+  # Plot histogram
+  p <- ggplot(state_data, aes(x=Severity)) +
+    geom_histogram(binwidth=1, fill="blue", color="black", alpha=0.7) + 
+    ggtitle(paste("Distribution of Severity in", state)) +
+    xlab("Severity") +
+    ylab("Count") +
+    theme_minimal()
+  
+  print(p)
+
+}
+
+# Use mclapply with the number of cores
+# detectCores() can get the number of available cores in the system
+system.time(
+  mclapply(unique_states, plot_histogram, mc.cores = detectCores())
+)
+```
+
+
